@@ -3,7 +3,7 @@ import type { PowerlineConfig } from "./loader";
 export const DEFAULT_CONFIG: PowerlineConfig = {
   theme: "dark",
   display: {
-    style: "minimal",
+    style: "powerline",
     charset: "unicode",
     colorCompatibility: "auto",
     autoWrap: true,
@@ -27,30 +27,31 @@ export const DEFAULT_CONFIG: PowerlineConfig = {
             showRepoName: false,
           },
           model: { enabled: true },
-          session: { enabled: true, type: "tokens", costSource: "calculated" },
-          today: { enabled: true, type: "cost" },
-          block: { enabled: false, type: "cost", burnType: "cost" },
-          version: { enabled: false },
-          tmux: { enabled: false },
+        },
+      },
+      {
+        segments: {
+          session: {
+            enabled: true,
+            type: "tokens",
+            costSource: "calculated",
+            showCompactCount: true,
+          },
+        },
+      },
+      {
+        segments: {
           context: {
             enabled: true,
             showPercentageOnly: false,
-            style: "text",
+            style: "bar",
             barWidth: 10,
             showBarPercentage: true,
+            showBarTokens: true,
             thresholds: {
               low: 50,
               high: 80,
             },
-          },
-          metrics: {
-            enabled: false,
-            showResponseTime: true,
-            showLastResponseTime: true,
-            showDuration: true,
-            showMessageCount: true,
-            showLinesAdded: true,
-            showLinesRemoved: true,
           },
         },
       },

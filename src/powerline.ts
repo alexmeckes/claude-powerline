@@ -570,6 +570,11 @@ export class PowerlineRenderer {
       metrics_lines_removed: symbolSet.metrics_lines_removed,
       metrics_burn: symbolSet.metrics_burn,
       version: symbolSet.version,
+      progress_filled: symbolSet.progress_filled,
+      progress_empty: symbolSet.progress_empty,
+      progress_left_bracket: symbolSet.progress_left_bracket,
+      progress_right_bracket: symbolSet.progress_right_bracket,
+      compact: symbolSet.compact,
     };
   }
 
@@ -600,7 +605,9 @@ export class PowerlineRenderer {
     const fallbackTheme = getTheme("dark", colorSupport)!;
 
     const getSegmentColors = (segment: keyof ColorTheme) => {
-      const colors = colorTheme[segment] || fallbackTheme[segment];
+      const segmentColors = colorTheme[segment] || fallbackTheme[segment];
+      // Ensure we have valid colors (fallback to context colors as safe default)
+      const colors = segmentColors || { bg: "#4a5568", fg: "#cbd5e0" };
 
       if (colorSupport === "none") {
         return {
@@ -636,6 +643,36 @@ export class PowerlineRenderer {
     const metrics = getSegmentColors("metrics");
     const version = getSegmentColors("version");
 
+    // Context threshold colors with fallbacks
+    const getOptionalSegmentColors = (segment: keyof ColorTheme, fallbackSegment: keyof ColorTheme) => {
+      const segmentColors = colorTheme[segment] || fallbackTheme[segment] || colorTheme[fallbackSegment] || fallbackTheme[fallbackSegment];
+      // Fallback to a safe default if still undefined
+      const colors = segmentColors || { bg: "#4a5568", fg: "#cbd5e0" };
+
+      if (colorSupport === "none") {
+        return { bg: "", fg: "" };
+      } else if (colorSupport === "ansi") {
+        return {
+          bg: hexToBasicAnsi(colors.bg, true),
+          fg: hexToBasicAnsi(colors.fg, false),
+        };
+      } else if (colorSupport === "ansi256") {
+        return {
+          bg: hexTo256Ansi(colors.bg, true),
+          fg: hexTo256Ansi(colors.fg, false),
+        };
+      } else {
+        return {
+          bg: hexToAnsi(colors.bg, true),
+          fg: hexToAnsi(colors.fg, false),
+        };
+      }
+    };
+
+    const contextLow = getOptionalSegmentColors("contextLow", "context");
+    const contextMed = getOptionalSegmentColors("contextMed", "context");
+    const contextHigh = getOptionalSegmentColors("contextHigh", "context");
+
     return {
       reset: colorSupport === "none" ? "" : RESET_CODE,
       modeBg: directory.bg,
@@ -654,6 +691,12 @@ export class PowerlineRenderer {
       tmuxFg: tmux.fg,
       contextBg: context.bg,
       contextFg: context.fg,
+      contextLowBg: contextLow.bg,
+      contextLowFg: contextLow.fg,
+      contextMedBg: contextMed.bg,
+      contextMedFg: contextMed.fg,
+      contextHighBg: contextHigh.bg,
+      contextHighFg: contextHigh.fg,
       metricsBg: metrics.bg,
       metricsFg: metrics.fg,
       versionBg: version.bg,

@@ -28,12 +28,21 @@ export interface GitSegmentConfig extends SegmentConfig {
 export interface UsageSegmentConfig extends SegmentConfig {
   type: "cost" | "tokens" | "both" | "breakdown";
   costSource?: "calculated" | "official";
+  showCompactCount?: boolean;
 }
 
 export interface TmuxSegmentConfig extends SegmentConfig {}
 
 export interface ContextSegmentConfig extends SegmentConfig {
   showPercentageOnly?: boolean;
+  style?: "text" | "bar";
+  barWidth?: number;
+  showBarPercentage?: boolean;
+  showBarTokens?: boolean;
+  thresholds?: {
+    low?: number;
+    high?: number;
+  };
 }
 
 export interface MetricsSegmentConfig extends SegmentConfig {
@@ -82,6 +91,7 @@ import type {
   GitInfo,
   ContextInfo,
   MetricsInfo,
+  SessionInfo,
 } from ".";
 import type { TodayInfo } from "./today";
 
@@ -113,6 +123,11 @@ export interface PowerlineSymbols {
   metrics_lines_removed: string;
   metrics_burn: string;
   version: string;
+  progress_filled: string;
+  progress_empty: string;
+  progress_left_bracket: string;
+  progress_right_bracket: string;
+  compact: string;
 }
 
 export interface SegmentData {
@@ -286,17 +301,41 @@ export class SegmentRenderer {
       return usageInfo.session.cost;
     };
 
-    const formattedUsage = this.formatUsageWithBudget(
-      getCost(),
-      usageInfo.session.tokens,
-      usageInfo.session.tokenBreakdown,
-      type,
-      sessionBudget?.amount,
-      sessionBudget?.warningThreshold || 80,
-      sessionBudget?.type
-    );
+    // Build session stats: messages and compactions
+    const messageCount = usageInfo.session.messageCount || 0;
+    const compactCount = usageInfo.session.compactCount || 0;
 
-    const text = `${this.symbols.session_cost} ${formattedUsage}`;
+    let statsText = "";
+    if (messageCount > 0) {
+      statsText += ` · ${messageCount} msgs`;
+    }
+    if (config?.showCompactCount !== false && compactCount > 0) {
+      statsText += ` · ${compactCount}${this.symbols.compact}`;
+    }
+
+    let formattedUsage: string;
+
+    if (type === "tokens" && usageInfo.session.tokenBreakdown) {
+      // Show input and output separately with total
+      const inputTokens = this.formatCompactTokens(usageInfo.session.tokenBreakdown.input);
+      const outputTokens = this.formatCompactTokens(usageInfo.session.tokenBreakdown.output);
+      const totalTokens = this.formatCompactTokens(
+        usageInfo.session.tokenBreakdown.input + usageInfo.session.tokenBreakdown.output
+      );
+      formattedUsage = `${inputTokens}↓ ${outputTokens}↑ (${totalTokens})`;
+    } else {
+      formattedUsage = this.formatUsageWithBudget(
+        getCost(),
+        usageInfo.session.tokens,
+        usageInfo.session.tokenBreakdown,
+        type,
+        sessionBudget?.amount,
+        sessionBudget?.warningThreshold || 80,
+        sessionBudget?.type
+      );
+    }
+
+    const text = `Session ${formattedUsage}${statsText}`;
 
     return {
       text,
@@ -330,24 +369,77 @@ export class SegmentRenderer {
     config?: ContextSegmentConfig
   ): SegmentData | null {
     if (!contextInfo) {
+      const defaultText = config?.style === "bar"
+        ? `Context ${this.generateContextBar(0, config?.barWidth || 10)}${config?.showBarPercentage !== false ? " 0%" : ""}`
+        : `Context 0 (100%)`;
       return {
-        text: `${this.symbols.context_time} 0 (100%)`,
-        bgColor: colors.contextBg,
-        fgColor: colors.contextFg,
+        text: defaultText,
+        bgColor: colors.contextLowBg || colors.contextBg,
+        fgColor: colors.contextLowFg || colors.contextFg,
       };
     }
 
-    const contextLeft = `${contextInfo.contextLeftPercentage}%`;
+    // Calculate used percentage (inverse of remaining)
+    const usedPercentage = 100 - contextInfo.contextLeftPercentage;
+    const thresholds = config?.thresholds || { low: 50, high: 80 };
+    const lowThreshold = thresholds.low ?? 50;
+    const highThreshold = thresholds.high ?? 80;
 
-    const text = config?.showPercentageOnly
-      ? `${this.symbols.context_time} ${contextLeft}`
-      : `${this.symbols.context_time} ${contextInfo.totalTokens.toLocaleString()} (${contextLeft})`;
+    // Determine colors based on usage thresholds
+    let bgColor: string;
+    let fgColor: string;
+    if (usedPercentage >= highThreshold) {
+      bgColor = colors.contextHighBg || colors.contextBg;
+      fgColor = colors.contextHighFg || colors.contextFg;
+    } else if (usedPercentage >= lowThreshold) {
+      bgColor = colors.contextMedBg || colors.contextBg;
+      fgColor = colors.contextMedFg || colors.contextFg;
+    } else {
+      bgColor = colors.contextLowBg || colors.contextBg;
+      fgColor = colors.contextLowFg || colors.contextFg;
+    }
+
+    let text: string;
+    if (config?.style === "bar") {
+      const barWidth = config?.barWidth || 10;
+      const bar = this.generateContextBar(usedPercentage, barWidth);
+      const percentageText = config?.showBarPercentage !== false ? ` ${Math.round(usedPercentage)}%` : "";
+
+      // Show current context window tokens
+      const tokensText = config?.showBarTokens !== false
+        ? ` · ${this.formatCompactTokens(contextInfo.totalTokens)}`
+        : "";
+      text = `Context ${bar}${percentageText}${tokensText}`;
+    } else {
+      // Default text style
+      const contextLeft = `${contextInfo.contextLeftPercentage}%`;
+      text = config?.showPercentageOnly
+        ? `Context ${contextLeft}`
+        : `Context ${contextInfo.totalTokens.toLocaleString()} (${contextLeft})`;
+    }
 
     return {
       text,
-      bgColor: colors.contextBg,
-      fgColor: colors.contextFg,
+      bgColor,
+      fgColor,
     };
+  }
+
+  private generateContextBar(usedPercentage: number, width: number): string {
+    const filledCount = Math.round((usedPercentage / 100) * width);
+    const emptyCount = width - filledCount;
+    const filled = this.symbols.progress_filled.repeat(filledCount);
+    const empty = this.symbols.progress_empty.repeat(emptyCount);
+    return `${this.symbols.progress_left_bracket}${filled}${empty}${this.symbols.progress_right_bracket}`;
+  }
+
+  private formatCompactTokens(tokens: number): string {
+    if (tokens >= 1000000) {
+      return `${(tokens / 1000000).toFixed(1)}M`;
+    } else if (tokens >= 1000) {
+      return `${(tokens / 1000).toFixed(1)}K`;
+    }
+    return tokens.toString();
   }
 
   renderMetrics(

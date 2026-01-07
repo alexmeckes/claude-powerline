@@ -29,6 +29,11 @@ export const SYMBOLS = {
   metrics_lines_removed: "-",
   metrics_burn: "⟢",
   version: "◈",
+  progress_filled: "█",
+  progress_empty: "░",
+  progress_left_bracket: "[",
+  progress_right_bracket: "]",
+  compact: "⟲",
 } as const;
 
 export const TEXT_SYMBOLS = {
@@ -60,5 +65,10 @@ export const TEXT_SYMBOLS = {
   metrics_lines_removed: "-",
   metrics_burn: "~/h",
   version: "V",
+  progress_filled: "#",
+  progress_empty: "-",
+  progress_left_bracket: "[",
+  progress_right_bracket: "]",
+  compact: "C",
 } as const;
 

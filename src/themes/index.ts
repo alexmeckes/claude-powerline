@@ -31,6 +31,9 @@ export interface ColorTheme {
   today: SegmentColor;
   tmux: SegmentColor;
   context: SegmentColor;
+  contextLow?: SegmentColor;   // green - usage < low threshold
+  contextMed?: SegmentColor;   // yellow - usage between thresholds
+  contextHigh?: SegmentColor;  // red - usage > high threshold
   metrics: SegmentColor;
   version: SegmentColor;
 }
@@ -53,6 +56,12 @@ export interface PowerlineColors {
   tmuxFg: string;
   contextBg: string;
   contextFg: string;
+  contextLowBg: string;
+  contextLowFg: string;
+  contextMedBg: string;
+  contextMedFg: string;
+  contextHighBg: string;
+  contextHighFg: string;
   metricsBg: string;
   metricsFg: string;
   versionBg: string;

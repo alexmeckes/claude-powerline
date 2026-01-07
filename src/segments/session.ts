@@ -40,6 +40,10 @@ export interface SessionInfo {
   officialCost: number | null;
   tokens: number | null;
   tokenBreakdown: TokenBreakdown | null;
+  compactCount: number;
+  messageCount: number; // Total API exchanges in session
+  baselineTokens: number | null;
+  currentInputTokens: number | null;
 }
 
 export interface UsageInfo {
@@ -133,6 +137,28 @@ export class SessionProvider {
     );
   }
 
+  detectCompactCount(entries: SessionUsageEntry[]): number {
+    if (entries.length < 2) return 0;
+
+    let compactCount = 0;
+    let prevInputTokens = 0;
+
+    for (const entry of entries) {
+      const inputTokens = entry.message.usage.input_tokens || 0;
+
+      // Detect compaction: significant drop in input tokens (more than 50% decrease)
+      // and previous context was substantial (> 10K tokens)
+      if (prevInputTokens > 10000 && inputTokens < prevInputTokens * 0.5) {
+        compactCount++;
+        debug(`Detected compaction: ${prevInputTokens} -> ${inputTokens} tokens`);
+      }
+
+      prevInputTokens = inputTokens;
+    }
+
+    return compactCount;
+  }
+
   async getSessionInfo(
     sessionId: string,
     hookData?: ClaudeHookData
@@ -146,6 +172,10 @@ export class SessionProvider {
         officialCost: null,
         tokens: null,
         tokenBreakdown: null,
+        compactCount: 0,
+        messageCount: 0,
+        baselineTokens: null,
+        currentInputTokens: null,
       };
     }
 
@@ -160,12 +190,35 @@ export class SessionProvider {
     const hookDataCost = hookData?.cost?.total_cost_usd ?? null;
     const cost = calculatedCost ?? hookDataCost;
 
+    const compactCount = this.detectCompactCount(sessionUsage.entries);
+
+    // Track baseline (first entry) and current (last entry) context tokens
+    // Include cache tokens as they represent the full context sent to the model
+    const firstEntry = sessionUsage.entries[0];
+    const lastEntry = sessionUsage.entries[sessionUsage.entries.length - 1];
+
+    const getContextTokens = (entry: SessionUsageEntry | undefined): number | null => {
+      if (!entry) return null;
+      const usage = entry.message.usage;
+      return (usage.input_tokens || 0) +
+             (usage.cache_creation_input_tokens || 0) +
+             (usage.cache_read_input_tokens || 0);
+    };
+
+    const baselineTokens = getContextTokens(firstEntry);
+    const currentInputTokens = getContextTokens(lastEntry);
+    const messageCount = sessionUsage.entries.length;
+
     return {
       cost,
       calculatedCost,
       officialCost: hookDataCost,
       tokens: totalTokens,
       tokenBreakdown,
+      compactCount,
+      messageCount,
+      baselineTokens,
+      currentInputTokens,
     };
   }
 }
@@ -197,6 +250,10 @@ export class UsageProvider {
           officialCost: null,
           tokens: null,
           tokenBreakdown: null,
+          compactCount: 0,
+          messageCount: 0,
+          baselineTokens: null,
+          currentInputTokens: null,
         },
       };
     }

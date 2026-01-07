@@ -9,6 +9,9 @@ export const darkTheme: ColorTheme = {
   today: { bg: "#1a1a1a", fg: "#98fb98" },
   tmux: { bg: "#2f4f2f", fg: "#90ee90" },
   context: { bg: "#4a5568", fg: "#cbd5e0" },
+  contextLow: { bg: "#2d5a2d", fg: "#98fb98" },
+  contextMed: { bg: "#5a5a2d", fg: "#ffff00" },
+  contextHigh: { bg: "#5a2d2d", fg: "#ff6b6b" },
   metrics: { bg: "#374151", fg: "#d1d5db" },
   version: { bg: "#3a3a4a", fg: "#b8b8d0" },
 };
@@ -22,6 +25,9 @@ export const darkAnsi256Theme: ColorTheme = {
   today: { bg: "#1c1c1c", fg: "#87ff87" },
   tmux: { bg: "#444444", fg: "#87ff87" },
   context: { bg: "#585858", fg: "#d0d0d0" },
+  contextLow: { bg: "#005f00", fg: "#87ff87" },
+  contextMed: { bg: "#5f5f00", fg: "#ffff00" },
+  contextHigh: { bg: "#5f0000", fg: "#ff5f5f" },
   metrics: { bg: "#4e4e4e", fg: "#d0d0d0" },
   version: { bg: "#444444", fg: "#d7afff" },
 };
@@ -35,6 +41,9 @@ export const darkAnsiTheme: ColorTheme = {
   today: { bg: "#262626", fg: "#00ff00" },
   tmux: { bg: "#585858", fg: "#00ff00" },
   context: { bg: "#808080", fg: "#ffffff" },
+  contextLow: { bg: "#008700", fg: "#ffffff" },
+  contextMed: { bg: "#878700", fg: "#000000" },
+  contextHigh: { bg: "#870000", fg: "#ffffff" },
   metrics: { bg: "#666666", fg: "#ffffff" },
   version: { bg: "#585858", fg: "#af87ff" },
 };
